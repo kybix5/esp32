@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.video_library),
             label: 'Ворота',
@@ -68,38 +68,118 @@ class VideoScreen extends StatefulWidget {
 
 class _VideoScreenState extends State<VideoScreen> {
   late VlcPlayerController _videoPlayerController; // Объявляем контроллер
-  String _videoUrl = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
+  String _videoUrl = 'http://media.w3.org/2010/05/bunny/movie.mp41';
+  String pin1 = "0";
+  String pin2 = "0";
+  String pin3 = "0";
+  String pin4 = "0";
+  Color _buttonColor = Colors.green; // Инициализируем цвет
 
   @override
   void initState() {
     super.initState();
-    _videoPlayerController = VlcPlayerController.network(_videoUrl);
+  }
+
+//получаем url видео , домофона и.т.д
+  Future<String> _fetchVideoUrl() async {
+    final url = 'https://e-rec.ru/esp32/geturl.php'; // Замените на ваш URL API
+
+    final Map<String, dynamic> requestBody = {
+      'id': 'esp32_device_id',
+      'url': 'get',
+      // Добавьте необходимые поля
+    };
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      pin1 = data['pin1'];
+      pin2 = data['pin2'];
+      pin3 = data['pin3'];
+      pin4 = data['pin4'];
+      //_updateButtonColor();
+      return data['url']; // Предположим, что URL находится в поле 'url'
+    } else {
+      throw Exception('Failed to load video URL');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: VlcPlayer(
-                controller: _videoPlayerController,
-                aspectRatio: 16 / 9,
-                placeholder: Center(child: CircularProgressIndicator()),
-              ),
+      body: Column(
+        children: [
+          Center(
+            child: FutureBuilder<String>(
+              future: _fetchVideoUrl(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator(); // Показываем индикатор загрузки
+                } else if (snapshot.hasError) {
+                  return Text('Ошибка: ${snapshot.error}');
+                } else if (snapshot.hasData) {
+                  // Инициализация контроллера с полученным URL
+                  final videoUrl = snapshot.data!;
+                  final VlcPlayerController controller = VlcPlayerController.network(videoUrl);
+
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: VlcPlayer(
+                          controller: controller,
+                          aspectRatio: 16 / 9,
+                          placeholder: Center(child: CircularProgressIndicator()),
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  );
+                } else {
+                  return Text('Нет данных');
+                }
+              },
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _sendPostRequest,
-              child: Text('Открыть Ворота'),
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              print('button down');
+              _invertPinStates(); // изменяем значение портов на противоположное
+              _sendPostRequest(); // отправка команды на сервер
+              _updateButtonColor(); // Обновляем цвет кнопки после получения ответа
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _buttonColor, // Устанавливаем цвет кнопки
             ),
-          ],
-        ),
+            child: Text('Открыть Ворота'),
+          ),
+        ],
       ),
     );
+  }
+
+// Функция для инвертирования значения
+  String invertValue(String pin) {
+    return (pin == "0") ? "1" : "0"; // Инвертируем значение
+  }
+
+  // Функция для инверсии состояния пинов
+  void _invertPinStates() {
+    // Инвертируем значения
+    // Инвертируем значения
+    pin1 = invertValue(pin1);
+    pin2 = invertValue(pin2);
+    pin3 = invertValue(pin3);
+    pin4 = invertValue(pin4);
+    print('button invertPinStates');
+    print('button :' + pin1);
   }
 
   Future<void> _sendPostRequest() async {
@@ -109,10 +189,10 @@ class _VideoScreenState extends State<VideoScreen> {
     // Создаем JSON-объект
     final Map<String, dynamic> data = {
       'id': 'esp32_device_id',
-      'pin1': '1',
-      'pin2': '0',
-      'pin3': '0',
-      'pin4': '0',
+      'pin1': pin1,
+      'pin2': pin2,
+      'pin3': pin3,
+      'pin4': pin4,
     };
 
     // Отправляем POST-запрос с заголовком Content-Type
@@ -125,11 +205,32 @@ class _VideoScreenState extends State<VideoScreen> {
     );
 
     if (response.statusCode == 200) {
-      // Обработать успешный ответ
-      print('POST request successful');
+      final data = json.decode(response.body);
+      pin1 = data['pin1'];
+      pin2 = data['pin2'];
+      pin3 = data['pin3'];
+      pin4 = data['pin4'];
+      print('button status 1' + pin1 + ' 2' + pin2);
+      //_updateButtonColor(); // Обновляем цвет кнопки после получения ответа
     } else {
-      // Обработать ошибку
-      print('POST request failed: ${response.statusCode}');
+      print('Failed to load pin status');
+      throw Exception('Failed to load pin status');
+    }
+  }
+
+  void _updateButtonColor() {
+    setState(() {
+      _buttonColor = _getButtonColor(); // Обновляем цвет кнопки
+    });
+  }
+
+  Color _getButtonColor() {
+    if (pin1 == '1') {
+      return Colors.red; // Цвет для pin1 < 5
+    } else if (pin1 == '0') {
+      return Colors.green; // Цвет для pin1 >= 5 и < 10
+    } else {
+      return Colors.yellow; // Цвет для pin1 >= 10
     }
   }
 
@@ -153,7 +254,7 @@ class _CameraScreenState extends State<CameraScreen> {
   String password = "password";
 
   final TextEditingController urlController = TextEditingController(text: 'https://media.w3.org/2010/05/sintel/trailer.mp4');
-  final TextEditingController idespController = TextEditingController(text: 'idespController');
+  final TextEditingController idespController = TextEditingController(text: 'esp32_device_id');
   final TextEditingController ssidController = TextEditingController(text: 'ssidController');
   final TextEditingController passwordController = TextEditingController(text: 'passwordController');
 
