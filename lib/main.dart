@@ -1,240 +1,282 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'dart:convert'; // Импортируем библиотеку для работы с JSON
 
-void main() {
-  runApp(MyApp());
-}
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter VLC Camera',
+      title: 'Flutter App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter VLC Camera'),
+      home: HomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
+class HomeScreen extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final _formKey = GlobalKey<FormState>();
-
-  String? _cameraUrl;
-  String? _cameraName;
-  String? _cameraDescription;
-
-  // Список настроек камеры
-  List<CameraSettings> _cameraSettings = [];
-
-  // VLC плеер
-  VlcPlayerController? _vlcPlayerController;
-
-  // API URL
-  final String _apiBaseUrl = 'https://e-rec.ru/esp32';
-
-  // Функция получения данных камеры с сервера
-  Future<void> _fetchCameraData() async {
-    final response = await http.get(Uri.parse('$_apiBaseUrl/cameras'));
-    if (response.statusCode == 200) {
-      // Обработка полученных данных
-      final data = json.decode(response.body);
-      // Обновление состояния
-      setState(() {
-        _cameraUrl = data['url'];
-        _cameraName = data['name'];
-        _cameraDescription = data['description'];
-        // Получение настроек камеры
-        _cameraSettings = data['settings'].map<CameraSettings>((item) => CameraSettings.fromJson(item)).toList();
-      });
-    } else {
-      // Ошибка получения данных
-      print('Error fetching camera data: ${response.statusCode}');
-    }
-  }
-
-  // Функция отправки настроек камеры на сервер
-  Future<void> _saveCameraSettings() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      final response = await http.post(Uri.parse('$_apiBaseUrl/cameras'),
-          body: jsonEncode({
-            'name': _cameraName,
-            'description': _cameraDescription,
-            'settings': _cameraSettings.map((e) => e.toJson()).toList(),
-          }));
-      if (response.statusCode == 200) {
-        // Успешная отправка
-        print('Camera settings saved successfully!');
-      } else {
-        // Ошибка отправки
-        print('Error saving camera settings: ${response.statusCode}');
-      }
-    }
-  }
-
-  // Функция инициализации VLC плеера
-  void _initVlcPlayer() {
-    _vlcPlayerController = VlcPlayerController.network(_cameraUrl ?? "");
-    _vlcPlayerController!.addListener(() {
-      setState(() {});
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Загрузка данных камеры с сервера
-    _fetchCameraData();
-  }
-
-  @override
-  void dispose() {
-    _vlcPlayerController?.dispose();
-    super.dispose();
-  }
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0; // Индекс выбранного экрана
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Center(child: Text('Автоматика')),
       ),
-      body: Column(
+      body: IndexedStack(
+        index: _selectedIndex,
         children: [
-          Expanded(
-            child: _cameraUrl != null
-                ? VlcPlayer(
-                    controller: _vlcPlayerController!,
-                    aspectRatio: 16 / 9,
-                    placeholder: Center(child: CircularProgressIndicator()),
-                  )
-                : Center(child: Text('Loading Camera...')),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: _cameraUrl != null ? _initVlcPlayer : null,
-              child: Text('Start Camera'),
-            ),
-          ),
-          // Виджет настроек камеры
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        decoration: InputDecoration(labelText: 'Camera Name'),
-                        initialValue: _cameraName,
-                        onSaved: (value) {
-                          _cameraName = value;
-                        },
-                      ),
-                      TextFormField(
-                        decoration: InputDecoration(labelText: 'Description'),
-                        initialValue: _cameraDescription,
-                        onSaved: (value) {
-                          _cameraDescription = value;
-                        },
-                      ),
-                      // Список настроек камеры
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
-                        itemCount: _cameraSettings.length,
-                        itemBuilder: (context, index) {
-                          return ListTile(
-                            title: Text(_cameraSettings[index].name),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete),
-                              onPressed: () {
-                                setState(() {
-                                  _cameraSettings.removeAt(index);
-                                });
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                      ElevatedButton(
-                        onPressed: _saveCameraSettings,
-                        child: Text('Save Camera Settings'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          VideoScreen(),
+          CameraScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.videocam),
-            label: 'Camera',
+            icon: Icon(Icons.video_library),
+            label: 'Ворота',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'Settings',
+            label: 'Настройка',
           ),
         ],
-        currentIndex: 0,
-        onTap: (index) {
-          // Обработка перехода по навигации
-          switch (index) {
-            case 0:
-              // Переход к экрану камеры
-              setState(() {});
-              break;
-            case 1:
-              // Переход к экрану настроек
-              setState(() {});
-              break;
-          }
-        },
       ),
     );
   }
 }
 
-// Класс для представления настроек камеры
-class CameraSettings {
-  String name;
-  String value;
+class VideoScreen extends StatefulWidget {
+  @override
+  _VideoScreenState createState() => _VideoScreenState();
+}
 
-  CameraSettings({required this.name, required this.value});
+class _VideoScreenState extends State<VideoScreen> {
+  late VlcPlayerController _videoPlayerController; // Объявляем контроллер
+  String _videoUrl = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
 
-  // Метод для создания объекта из JSON
-  factory CameraSettings.fromJson(Map<String, dynamic> json) {
-    return CameraSettings(
-      name: json['name'],
-      value: json['value'],
+  @override
+  void initState() {
+    super.initState();
+    _videoPlayerController = VlcPlayerController.network(_videoUrl);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: VlcPlayer(
+                controller: _videoPlayerController,
+                aspectRatio: 16 / 9,
+                placeholder: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _sendPostRequest,
+              child: Text('Открыть Ворота'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // Метод для преобразования объекта в JSON
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'value': value,
+  Future<void> _sendPostRequest() async {
+    // Заменить URL-адрес на свой
+    final url = Uri.parse('https://e-rec.ru/esp32/open.php');
+
+    // Создаем JSON-объект
+    final Map<String, dynamic> data = {
+      'id': 'esp32_device_id',
+      'pin1': '1',
+      'pin2': '0',
+      'pin3': '0',
+      'pin4': '0',
     };
+
+    // Отправляем POST-запрос с заголовком Content-Type
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json', // Указываем, что отправляем JSON
+      },
+      body: jsonEncode(data), // Преобразуем Map в JSON-строку
+    );
+
+    if (response.statusCode == 200) {
+      // Обработать успешный ответ
+      print('POST request successful');
+    } else {
+      // Обработать ошибку
+      print('POST request failed: ${response.statusCode}');
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    super.dispose();
+  }
+}
+
+class CameraScreen extends StatefulWidget {
+  @override
+  _CameraScreenState createState() => _CameraScreenState();
+}
+
+class _CameraScreenState extends State<CameraScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String cameraUrl = 'https://media.w3.org/2010/05/sintel/trailer.mp4'; // Заменить на ваш URL
+  String id_esp = "ssid";
+  String ssid = "ssid";
+  String password = "password";
+
+  final TextEditingController urlController = TextEditingController(text: 'https://media.w3.org/2010/05/sintel/trailer.mp4');
+  final TextEditingController idespController = TextEditingController(text: 'idespController');
+  final TextEditingController ssidController = TextEditingController(text: 'ssidController');
+  final TextEditingController passwordController = TextEditingController(text: 'passwordController');
+
+  Future<void> _sendCameraSettings(String cameraUrl, String id_esp, String ssid, String password) async {
+    final url = Uri.parse('https://e-rec.ru/esp32/camera.php'); // Замените на ваш URL
+
+    final response = await http.post(
+      url,
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'url': cameraUrl,
+        'id_esp': id_esp,
+        'ssid': ssid,
+        'password': password,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      // Успешно отправлено
+      print('Данные успешно отправлены');
+      // Закрываем форму
+      try {
+        final responseJson = jsonDecode(response.body);
+        if (responseJson['answer'] == 'ok') {
+          print('данные переданны: ${responseJson}');
+          _showErrorDialog(responseJson['answer']);
+        } else {
+          print('Ошибка при отправке данных: ${responseJson}');
+          _showErrorDialog(responseJson['answer']);
+        }
+      } catch (e) {
+        print('Ошибка декодирования JSON: $e');
+        _showErrorDialog('Ошибка декодирования JSON: $e');
+      }
+    } else {
+      // Ошибка при отправке
+      print('Ошибка при отправке данных: ${response.statusCode}');
+      // Показываем сообщение об ошибке
+      _showErrorDialog('Ошибка при отправке данных: ${response.statusCode}');
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Ответ сервера'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop(); // Закрыть диалог
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: urlController,
+                decoration: InputDecoration(labelText: 'URL камеры'),
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: idespController,
+                decoration: InputDecoration(labelText: 'id_esp'),
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: ssidController,
+                decoration: InputDecoration(labelText: 'ssid'),
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: passwordController,
+                decoration: InputDecoration(labelText: 'password'),
+              ),
+              SizedBox(height: 32),
+              ElevatedButton(
+                onPressed: () {
+                  // Проверка на заполненность полей
+                  if (urlController.text.isEmpty) {
+                    // Здесь можно показать сообщение об ошибке
+                    _showErrorDialog('Пожалуйста, введите url');
+                    return;
+                  }
+                  if (idespController.text.isEmpty) {
+                    // Здесь можно показать сообщение об ошибке
+                    _showErrorDialog('Пожалуйста, введите id_esp');
+                    return;
+                  }
+                  if (ssidController.text.isEmpty) {
+                    // Здесь можно показать сообщение об ошибке
+                    _showErrorDialog('Пожалуйста, введите ssid');
+                    return;
+                  }
+                  // Проверка на заполненность полей
+                  if (passwordController.text.isEmpty) {
+                    // Здесь можно показать сообщение об ошибке
+                    _showErrorDialog('Пожалуйста, введите password');
+                    return;
+                  }
+                  _sendCameraSettings(urlController.text, idespController.text, ssidController.text, passwordController.text);
+                },
+                child: Text('Сохранить настройки'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
