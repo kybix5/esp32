@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Импортируем библиотеку для работы с JSON
 
@@ -68,6 +69,7 @@ class VideoScreen extends StatefulWidget {
 
 class _VideoScreenState extends State<VideoScreen> {
   late VlcPlayerController _videoPlayerController; // Объявляем контроллер
+  String _currentVideoUrl = '';
   String _videoUrl = 'http://media.w3.org/2010/05/bunny/movie.mp41';
   String pin1 = "0";
   String pin2 = "0";
@@ -78,6 +80,44 @@ class _VideoScreenState extends State<VideoScreen> {
   @override
   void initState() {
     super.initState();
+    _videoPlayerController = VlcPlayerController.network('http://media.w3.org/2010/05/bunny/movie.mp41'); // Инициализируем пустым URL
+    _loadInitialData(); // Загружаем данные при инициализации виджета
+  }
+
+  Future<void> _loadInitialData() async {
+    final url = 'https://e-rec.ru/esp32/geturl.php'; // Замените на ваш URL API
+
+    final Map<String, dynamic> requestBody = {
+      'id': 'esp32_device_id',
+      'url': 'get',
+      // Добавьте необходимые поля
+    };
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      pin1 = data['pin1'];
+      pin2 = data['pin2'];
+      pin3 = data['pin3'];
+      pin4 = data['pin4'];
+      print('button status 1:' + pin1 + ' 2:' + pin2);
+
+      final String newVideoUrl = data['url']; // Замените ключ на правильный
+
+      setState(() {
+        _currentVideoUrl = newVideoUrl;
+        print('button status url: ' + newVideoUrl);
+        _videoPlayerController.setMediaFromNetwork(_currentVideoUrl);
+        _updateButtonColor();
+      });
+    } else {
+      throw Exception('Failed to load video URL');
+    }
   }
 
 //получаем url видео , домофона и.т.д
@@ -112,55 +152,33 @@ class _VideoScreenState extends State<VideoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          Center(
-            child: FutureBuilder<String>(
-              future: _fetchVideoUrl(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator(); // Показываем индикатор загрузки
-                } else if (snapshot.hasError) {
-                  return Text('Ошибка: ${snapshot.error}');
-                } else if (snapshot.hasData) {
-                  // Инициализация контроллера с полученным URL
-                  final videoUrl = snapshot.data!;
-                  final VlcPlayerController controller = VlcPlayerController.network(videoUrl);
-
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: VlcPlayer(
-                          controller: controller,
-                          aspectRatio: 16 / 9,
-                          placeholder: Center(child: CircularProgressIndicator()),
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                  );
-                } else {
-                  return Text('Нет данных');
-                }
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: VlcPlayer(
+                controller: _videoPlayerController,
+                aspectRatio: 16 / 9,
+                placeholder: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                print('button down');
+                _invertPinStates(); // изменяем значение портов на противоположное
+                _sendPostRequest(); // отправка команды на сервер
+                _updateButtonColor(); // Обновляем цвет кнопки после получения ответа
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _buttonColor, // Устанавливаем цвет кнопки
+              ),
+              child: Text('Открыть Ворота'),
             ),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              print('button down');
-              _invertPinStates(); // изменяем значение портов на противоположное
-              _sendPostRequest(); // отправка команды на сервер
-              _updateButtonColor(); // Обновляем цвет кнопки после получения ответа
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _buttonColor, // Устанавливаем цвет кнопки
-            ),
-            child: Text('Открыть Ворота'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
