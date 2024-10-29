@@ -16,6 +16,14 @@ class _MyWidgetState extends State<ButtonList> {
   void initState() {
     super.initState();
     _loadInitialData(); // Загружаем начальные данные при инициализации
+    _delayedCall();
+  }
+
+  // Рекурсивная функция, которая вызывает _yourFunction() с задержкой
+  Future<void> _delayedCall() async {
+    await Future.delayed(const Duration(seconds: 3));
+    _loadInitialData();
+    _delayedCall(); // Вызываем себя снова
   }
 
   @override
@@ -76,7 +84,9 @@ class _MyWidgetState extends State<ButtonList> {
 
   // Функция для загрузки начальных данных (состояние кнопок, цвет индикатора)
   Future<void> _loadInitialData() async {
-    final url = Uri.parse('https://e-rec.ru/esp32/get_data'); // Замените URL
+    final id = 'esp32_device_id'; // Замените на ваше ID
+    final url = Uri.parse('https://e-rec.ru/esp32/get_data?id=$id'); // Замените URL
+
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -86,7 +96,7 @@ class _MyWidgetState extends State<ButtonList> {
       _buttonStates = List.generate(8, (index) => data['button_states'][index]);
       // Обновляем цвет индикатора
       _connectionColor = data['connection_status'] == 'connected' ? Colors.green : Colors.red;
-
+      print('button : loadInitialData go');
       setState(() {}); // Перерисовываем виджет
     } else {
       // Обработка ошибки
@@ -100,6 +110,7 @@ class _MyWidgetState extends State<ButtonList> {
     final Map<String, dynamic> requestBody = {
       'id': 'esp32_device_id',
       'button_index': buttonIndex,
+      'status': _buttonStates[buttonIndex] ? 1 : 0, // Преобразуем true/false в 1/0
       // Добавьте необходимые поля
     };
     final response = await http.post(

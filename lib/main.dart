@@ -79,9 +79,6 @@ class _VideoScreenState extends State<VideoScreen> {
   String _currentVideoUrl = '';
   String _videoUrl = 'http://media.w3.org/2010/05/bunny/movie.mp41';
   String pin1 = "0";
-  String pin2 = "0";
-  String pin3 = "0";
-  String pin4 = "0";
   Color _buttonColor = Colors.green; // Инициализируем цвет
 
   @override
@@ -109,10 +106,7 @@ class _VideoScreenState extends State<VideoScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       pin1 = data['pin1'];
-      pin2 = data['pin2'];
-      pin3 = data['pin3'];
-      pin4 = data['pin4'];
-      print('button status 1:' + pin1 + ' 2:' + pin2);
+      print('button status 1:' + pin1);
 
       final String newVideoUrl = data['url']; // Замените ключ на правильный
 
@@ -146,9 +140,6 @@ class _VideoScreenState extends State<VideoScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       pin1 = data['pin1'];
-      pin2 = data['pin2'];
-      pin3 = data['pin3'];
-      pin4 = data['pin4'];
       //_updateButtonColor();
       return data['url']; // Предположим, что URL находится в поле 'url'
     } else {
@@ -190,6 +181,13 @@ class _VideoScreenState extends State<VideoScreen> {
     );
   }
 
+  // Рекурсивная функция, которая вызывает _yourFunction() с задержкой
+  Future<void> _delayedCall() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    _delayedCall(); // Вызываем себя снова
+  }
+
 // Функция для инвертирования значения
   String invertValue(String pin) {
     return (pin == "0") ? "1" : "0"; // Инвертируем значение
@@ -198,11 +196,7 @@ class _VideoScreenState extends State<VideoScreen> {
   // Функция для инверсии состояния пинов
   void _invertPinStates() {
     // Инвертируем значения
-    // Инвертируем значения
     pin1 = invertValue(pin1);
-    pin2 = invertValue(pin2);
-    pin3 = invertValue(pin3);
-    pin4 = invertValue(pin4);
     print('button invertPinStates');
     print('button :' + pin1);
   }
@@ -215,9 +209,6 @@ class _VideoScreenState extends State<VideoScreen> {
     final Map<String, dynamic> data = {
       'id': 'esp32_device_id',
       'pin1': pin1,
-      'pin2': pin2,
-      'pin3': pin3,
-      'pin4': pin4,
     };
 
     // Отправляем POST-запрос с заголовком Content-Type
@@ -232,10 +223,8 @@ class _VideoScreenState extends State<VideoScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       pin1 = data['pin1'];
-      pin2 = data['pin2'];
-      pin3 = data['pin3'];
-      pin4 = data['pin4'];
-      print('button status 1' + pin1 + ' 2' + pin2);
+
+      print('button status 1' + pin1);
       //_updateButtonColor(); // Обновляем цвет кнопки после получения ответа
     } else {
       print('Failed to load pin status');
