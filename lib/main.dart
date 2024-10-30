@@ -115,6 +115,7 @@ class _VideoScreenState extends State<VideoScreen> {
         print('button status url: ' + newVideoUrl);
         _videoPlayerController.setMediaFromNetwork(_currentVideoUrl);
         _updateButtonColor();
+        _delayedCall();
       });
     } else {
       throw Exception('Failed to load video URL');
@@ -122,7 +123,7 @@ class _VideoScreenState extends State<VideoScreen> {
   }
 
 //получаем url видео , домофона и.т.д
-  Future<String> _fetchVideoUrl() async {
+  Future<String> _getStatusButton() async {
     final url = 'https://e-rec.ru/esp32/geturl.php'; // Замените на ваш URL API
 
     final Map<String, dynamic> requestBody = {
@@ -184,6 +185,9 @@ class _VideoScreenState extends State<VideoScreen> {
   // Рекурсивная функция, которая вызывает _yourFunction() с задержкой
   Future<void> _delayedCall() async {
     await Future.delayed(const Duration(seconds: 3));
+    _getStatusButton();
+    _updateButtonColor();
+    print('button Update:' + pin1);
 
     _delayedCall(); // Вызываем себя снова
   }
@@ -239,9 +243,9 @@ class _VideoScreenState extends State<VideoScreen> {
   }
 
   Color _getButtonColor() {
-    if (pin1 == '1') {
-      return Colors.red; // Цвет для pin1 < 5
-    } else if (pin1 == '0') {
+    if (pin1 == '0') {
+      return Colors.grey; // Цвет для pin1 < 5
+    } else if (pin1 == '1') {
       return Colors.green; // Цвет для pin1 >= 5 и < 10
     } else {
       return Colors.yellow; // Цвет для pin1 >= 10
