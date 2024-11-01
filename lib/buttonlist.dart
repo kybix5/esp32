@@ -65,14 +65,27 @@ class _MyWidgetState extends State<ButtonList> {
               spacing: 8.0,
               runSpacing: 8.0,
               children: List.generate(8, (index) {
-                return ElevatedButton(
-                  onPressed: () {
-                    _sendPostRequest(index);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _buttonStates[index] ? Colors.green : Colors.grey,
+                return Container(
+                  width: 150, // Устанавливаем ширину для кнопок
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _sendPostRequest(index);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _buttonStates[index] ? Colors.green : Colors.grey,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _buttonStates[index] ? Icons.check : Icons.close, // Меняем иконку в зависимости от состояния
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 8), // Отступ между иконкой и текстом
+                        Text('Кнопка ${index + 1}'),
+                      ],
+                    ),
                   ),
-                  child: Text('Кнопка ${index + 1}'),
                 );
               }),
             ),

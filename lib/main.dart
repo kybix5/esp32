@@ -124,26 +124,28 @@ class _VideoScreenState extends State<VideoScreen> {
 
 //получаем url видео , домофона и.т.д
   Future<String> _getStatusButton() async {
-    final url = 'https://e-rec.ru/esp32/geturl.php'; // Замените на ваш URL API
-
+    final url = 'https://e-rec.ru/esp32/geturl.php';
     final Map<String, dynamic> requestBody = {
       'id': 'esp32_device_id',
       'url': 'get',
-      // Добавьте необходимые поля
     };
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(requestBody),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      pin1 = data['pin1'];
-      //_updateButtonColor();
-      return data['url']; // Предположим, что URL находится в поле 'url'
-    } else {
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        pin1 = data['pin1'];
+        return data['url'];
+      } else {
+        throw Exception('Failed to load video URL: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Ошибка при отправке запроса: $e');
       throw Exception('Failed to load video URL');
     }
   }

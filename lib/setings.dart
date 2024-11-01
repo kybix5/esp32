@@ -20,7 +20,7 @@ class _CameraScreenState extends State<CameraScreen> {
   final TextEditingController passwordController = TextEditingController(text: 'passwordController');
 
   Future<void> _sendCameraSettings(String cameraUrl, String id_esp, String ssid, String password) async {
-    final url = Uri.parse('https://e-rec.ru/esp32/camera.php'); // Замените на ваш URL
+    final url = Uri.parse('https://e-rec.ru/esp32/settings.php'); // Замените на ваш URL
 
     final response = await http.post(
       url,
